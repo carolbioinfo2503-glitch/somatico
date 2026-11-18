@@ -1,0 +1,30 @@
+## ENSEMBL VARIANT EFFECT PREDICTOR v116.3
+## Output produced at 2026-11-18 01:21:25
+## Connected to homo_sapiens_core_116_37 on ensembldb.ensembl.org
+## Using API version 116, DB version 116
+## ensembl version 116.0d85231
+## ensembl-compara version 116.4038708
+## ensembl-funcgen version 116.90049ea
+## ensembl-io version 116.6afb5dc
+## ensembl-variation version 116.db7394a
+## COSMIC version 98
+## ClinVar version 202306
+## HGMD-PUBLIC version 20204
+## assembly version GRCh37.p13
+## dbSNP version 156
+## gencode version GENCODE 19
+## genebuild version 2011-04
+## refseq version GCF_000001405.25-RS_2024_09 - GCF_000001405.25_GRCh37.p13_genomic.gff
+## Column descriptions:
+## Location : Location of variant in standard coordinate format (chr:start or chr:start-end)
+## SYMBOL : Gene symbol (e.g. HGNC)
+## Consequence : Consequence type
+## Feature : Stable ID of feature
+## Amino_acids : Reference and variant amino acids
+## CLIN_SIG : ClinVar clinical significance of the dbSNP variant
+## VEP command-line: vep --assembly GRCh37 --check_existing --dir_plugins /plugins --fasta chr9.fa --fields Location,SYMBOL,Consequence,Feature,Amino_acids,CLIN_SIG --force_overwrite --individual all --input_file filtered.vcf.gz --output_file [PATH]/filtered.vep.tsv --pick --pick_allele --refseq --symbol --tab
+#Location	SYMBOL	Consequence	Feature	Amino_acids	CLIN_SIG
+9:5044364	JAK2	intron_variant	NM_004972.4	-	-
+9:5054761	JAK2	synonymous_variant	NM_004972.4	E	-
+9:5073681-5073682	JAK2	splice_polypyrimidine_tract_variant,intron_variant	NM_004972.4	-	-
+9:5073770	JAK2	missense_variant	NM_004972.4	V/F	not_provided,affects,pathogenic,risk_factor,likely_pathogenic,pathogenic/likely_pathogenic
