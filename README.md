@@ -99,12 +99,9 @@ Samtools is a suite of programs for interacting with high-throughput sequencing 
 
 
 ### samtools install
-
-* samtools install (Mac)
-
-```bash
-brew install samtools 
-```
+# atualizar 
+ ``` sudo apt update 
+````
 
 * samtools install (Ubuntu)
 
@@ -297,8 +294,12 @@ chmod 777 vep_output
 ```bash
 bash vep-docker.sh
 ```
+# Confirma criação do arquivo 
+ls -lh vep_output
 
+# Para ver os resultados:
 
+head vep_output/filtered.vep.tsv
 
 ## Panel of Normal (PoN)
 
@@ -319,10 +320,18 @@ wget -c https://storage.googleapis.com/gatk-best-practices/somatic-b37/Mutect2-e
 ```bash
 wget -c https://storage.googleapis.com/gatk-best-practices/somatic-b37/Mutect2-exome-panel.vcf.idx
 ```
+# Criar dicionário
+./gatk-4.2.2.0/gatk CreateSequenceDictionary -R hg19.fa -O hg19.dict
 
-* Mutect2
+# Criar o indice 
+samtools faidx hg19.fa
+# Cria os intervalos
+./gatk-4.2.2.0/gatk ScatterIntervalsByNs -R hg19.fa -O hg19.interval_list -OT ACGT
 
-```bash
+# Conferir a referencia 
+grep -v "^@" hg19.interval_list | head 
+
+# Mutect
 ./gatk-4.2.2.0/gatk Mutect2 \
   -R hg19.fa \
   -I tumor_wp190.bam \
@@ -331,15 +340,18 @@ wget -c https://storage.googleapis.com/gatk-best-practices/somatic-b37/Mutect2-e
   -L hg19.interval_list \
   -O WP190.somatic.pon.vcf.gz
   
-```
 
-* CalculateContamination somente com o table do tumor (ex.: wp190)
+# CalculateContamination somente com o table do tumor (ex.: wp190)
+# erro: A USER ERROR has occurred: Encountered an IO exception while reading from tumor_wp190.table. Não existe arquivo nomeada tumor_wp190.table (comando ls -lh *.table )
 
-```bash
-./gatk-4.2.2.0/gatk CalculateContamination \
+```./gatk-4.2.2.0/gatk CalculateContamination \
 	-I tumor_wp190.table \
 	-O WP190.contamination.pon.table
-```
+``` 
+
+# script corrigido  CalculateContamination somente com o table do tumor (ex.: wp190)
+
+# ./gatk-4.2.2.0/gatk GetPileupSummaries -I tumor_wp190.bam -V af-only-gnomad-chr13-chr19.vcf.gz -L hg19.interval_list -O tumor_wp190.table 
 
 * FilterMutectCalls
 
@@ -351,7 +363,17 @@ wget -c https://storage.googleapis.com/gatk-best-practices/somatic-b37/Mutect2-e
 	-O WP190.filtered.pon.vcf.gz
 ```
 
+# Quantas variantes passaram no filtro: 3
 
+zcat WP190.filtered.pon.vcf.gz | grep -v "^#" | awk '$7=="PASS"' | wc -l
+
+# Quantas variantes caíram em cada filtro, como germline, weak_evidence ou panel_of_normals:
+
+zcat WP190.filtered.pon.vcf.gz | grep -v "^#" | cut -f7 | sort | uniq -c | sort -nr
+
+# Ver as variantes PASS:
+
+zcat WP190.filtered.pon.vcf.gz | grep -v "^#" | awk '$7=="PASS"' | cut -f1-7 | head
 
 
 
@@ -374,60 +396,6 @@ samtools view -h -b /Volumes/Seagate\ Expansion\ Drive/data-lpfap10/projects/pro
 Aqui estão os comandos que foram utilizados para gerar os BAMs intermediários e como gerar arquivos FASTQs de regiões específicas do seu arquivo BAM completo.
 > Essas etapas não precisam ser executadas nesse pipeline
 
-* BAM para BAM
-
-```bash
-samtools view -h -b /Volumes/Seagate\ Expansion\ Drive/data-lpfap10/projects/proadi/exome/bam/WP043/WP043.bam 9:5021937-5126899 > tumor_JAK2.bam
-```
-
-```bash
-samtools view -h -b /Volumes/Seagate\ Expansion\ Drive/data-lpfap10/projects/proadi/exome/bam/WP044/WP044.bam 9:5021937-5126899 > normal_JAK2.bam
-```
-
-* Gerar index do BAM (.BAI)
-
-```bash
-samtools index tumor_JAK2.bam 
-```
-
-```bash
-samtools index normal_JAK2.bam 
-```
-
-
-
-### af-only-gnomad.vcf.gz (apenas região JAK2)
-> [Google Clou af-only-gnomad.vcf.gz](https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-b37;tab=objects?project=broad-dsde-outreach&pageState=(%22StorageObjectListTable%22:(%22f%22:%22%255B%255D%22))&forceOnObjectsSortingFiltering=false&pli=1)
-
-* Header do VCF
-
-```bash
-zgrep -w "\#" af-only-gnomad.raw.sites.chr.vcf.gz > header
-```
-
-* Apenas Região do Gene JAK2
-
-```bash
-zgrep -w "^chr9" af-only-gnomad.raw.sites.chr.vcf.gz  | awk '$2>=5021937 && $2<=5126899' > JAK2.region
-```
-
-* Concatenar header + vcf
-
-```bash
-cat header JAK2.region > af-only-gnomad-chr9.vcf
-```
-
-* Compactar
-
-```bash
-bgzip af-only-gnomad-chr9.vcf
-```
-
-* Index do VCF
-
-```bash
-tabix -p vcf af-only-gnomad-chr9.vcf.gz 
-```
 
 # Anexo 2
 
@@ -447,7 +415,219 @@ sh run.chr13-chr19.pon.sh tumor_wp017.bam tumor_wp018.bam WP017 WP018
 sh run.chr13-chr19.pon.sh tumor_wp190.bam tumor_wp191.bam WP190 WP191 
 
 ```
+> ANÁLISE COM PARES (tumor + normal)
+ # WP017 (tumor) × WP018 (normal)
 
+ Mutect2: chama as variantes, compara tumor com normal
+./gatk-4.2.2.0/gatk Mutect2 \
+  -R hg19.fa \
+  -I tumor_wp017.bam \
+  -I tumor_wp018.bam \
+  -normal WP018 \
+  --germline-resource af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP017.somatic.vcf.gz
+
+>>TUMORWP017
+
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp017.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP017.table
+
+>>NORMAL018
+
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp018.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP018.table
+
+>>> Variantes candidatas e head 5 
+zgrep -vc '^#' WP017.somatic.vcf.gz
+head -n 5 WP017.table WP018.table
+
+>>>Calculatar contaminação
+
+./gatk-4.2.2.0/gatk CalculateContamination \
+  -I WP017.table \
+  -matched WP018.table \
+  -O WP017.contamination.table
+
+>>FilterMutectCalls
+
+./gatk-4.2.2.0/gatk FilterMutectCalls \
+  -R hg19.fa \
+  -V WP017.somatic.vcf.gz \
+  --contamination-table WP017.contamination.table \
+  -O WP017.filtered.vcf.gz
+
+
+#  WP190 (tumor) × WP191 (normal)
+
+>>> Mutect 
+./gatk-4.2.2.0/gatk Mutect2 \
+  -R hg19.fa \
+  -I tumor_wp190.bam \
+  -I tumor_wp191.bam \
+  -normal WP191 \
+  --germline-resource af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP190.somatic.vcf.gz
+
+>> TUMOR 190 
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp190.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP190.table
+
+>>> NORMAL 191 
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp191.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP191.table
+
+>>Calcular contaminação 
+./gatk-4.2.2.0/gatk CalculateContamination \
+  -I WP190.table \
+  -matched WP191.table \
+  -O WP190.contamination.table
+
+>>Filtrar 
+./gatk-4.2.2.0/gatk FilterMutectCalls \
+  -R hg19.fa \
+  -V WP190.somatic.vcf.gz \
+  --contamination-table WP190.contamination.table \
+  -O WP190.filtered.vcf.gz
+
+>Variantes PASS 
+zcat WP190.filtered.vcf.gz | awk '!/^#/ {print $7}' | sort | uniq -c
+
+# Análise com PoN (só o tumor)
+  
+  # WP017
+  >Mutect
+./gatk-4.2.2.0/gatk Mutect2 \
+  -R hg19.fa \
+  -I tumor_wp017.bam \
+  --germline-resource af-only-gnomad-chr13-chr19.vcf.gz \
+  --panel-of-normals Mutect2-exome-panel.vcf \
+  -L hg19.interval_list \
+  -O WP017.somatic.pon.vcf.gz
+
+> tabela
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp017.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP017.pon.table
+
+> Calcular contaminação 
+./gatk-4.2.2.0/gatk CalculateContamination \
+  -I WP017.pon.table \
+  -O WP017.contamination.pon.table
+
+> Filtro 
+./gatk-4.2.2.0/gatk FilterMutectCalls \
+  -R hg19.fa \
+  -V WP017.somatic.pon.vcf.gz \
+  --contamination-table WP017.contamination.pon.table \
+  -O WP017.filtered.pon.vcf.gz
+
+  # WP190
+> Mutect
+./gatk-4.2.2.0/gatk Mutect2 \
+  -R hg19.fa \
+  -I tumor_wp190.bam \
+  --germline-resource af-only-gnomad-chr13-chr19.vcf.gz \
+  --panel-of-normals Mutect2-exome-panel.vcf \
+  -L hg19.interval_list \
+  -O WP190.somatic.pon.vcf.gz
+
+> tabela
+./gatk-4.2.2.0/gatk GetPileupSummaries \
+  -I tumor_wp190.bam \
+  -V af-only-gnomad-chr13-chr19.vcf.gz \
+  -L hg19.interval_list \
+  -O WP190.pon.table
+
+>Calcular contaminação
+./gatk-4.2.2.0/gatk CalculateContamination \
+  -I WP190.pon.table \
+  -O WP190.contamination.pon.table
+
+> Filtro ./gatk-4.2.2.0/gatk FilterMutectCalls \
+  -R hg19.fa \
+  -V WP190.somatic.pon.vcf.gz \
+  --contamination-table WP190.contamination.pon.table \
+  -O WP190.filtered.pon.vcf.gz
+
+
+# contar as variantes PASS de cada análise:
+
+for f in WP017.filtered.vcf.gz WP017.filtered.pon.vcf.gz WP190.filtered.vcf.gz WP190.filtered.pon.vcf.gz; do echo "$f: $(zcat $f | grep -v '^#' | awk '$7=="PASS"' | wc -l) PASS"; done
+
+
+# JAK2
+ > Baixar cromossomo 9 - ref hg19 e descompactar 
+wget -c https://hgdownload.soe.ucsc.edu/goldenPath/hg19/chromosomes/chr9.fa.gz
+zcat chr9.fa.gz | sed -e "s/chr//g" > chr9.fa
+
+> indexar referencia
+samtools faidx hg19_chr9.fa
+
+# WP043 × WP044
+> cria sequencia 
+./gatk-4.2.2.0/gatk CreateSequenceDictionary -R chr9.fa -O chr9.dict
+
+> cria intervalo
+./gatk-4.2.2.0/gatk ScatterIntervalsByNs -R chr9.fa -O chr9.interval_list -OT ACGT
+
+> 
+./gatk-4.2.2.0/gatk Mutect2 -R chr9.fa -I tumor_JAK2.bam -I normal_JAK2.bam -normal WP044 --germline-resource af-only-gnomad-chr9.vcf.gz -L chr9.interval_list -O WP043.somatic.vcf.gz
+
+> 
+./gatk-4.2.2.0/gatk GetPileupSummaries -I normal_JAK2.bam -V af-only-gnomad-chr9.vcf.gz -L chr9.interval_list -O WP044.table
+
+> calcula contaminação 
+./gatk-4.2.2.0/gatk CalculateContamination -I WP043.table -matched WP044.table -O WP043.contamination.table
+
+> filtro
+
+./gatk-4.2.2.0/gatk FilterMutectCalls -R chr9.fa -V WP043.somatic.vcf.gz --contamination-table WP043.contamination.table -O WP043.filtered.vcf.gz
+
+# só  tumor WP043
+> mutect
+./gatk-4.2.2.0/gatk Mutect2 -R chr9.fa -I tumor_JAK2.bam --germline-resource af-only-gnomad-chr9.vcf.gz --panel-of-normals Mutect2-exome-panel.vcf -L chr9.interval_list -O WP043.somatic.pon.vcf.gz
+
+> tabela 
+./gatk-4.2.2.0/gatk GetPileupSummaries -I tumor_JAK2.bam -V af-only-gnomad-chr9.vcf.gz -L chr9.interval_list -O WP043.pon.table
+
+> contaminação 
+./gatk-4.2.2.0/gatk CalculateContamination -I WP043.pon.table -O WP043.contamination.pon.table
+
+> filtro 
+./gatk-4.2.2.0/gatk FilterMutectCalls -R chr9.fa -V WP043.somatic.pon.vcf.gz --contamination-table WP043.contamination.pon.table -O WP043.filtered.pon.vcf.gz
+
+> identificar e comparar variantes pass 
+for f in WP043.somatic.vcf.gz WP043.filtered.vcf.gz WP043.somatic.pon.vcf.gz WP043.filtered.pon.vcf.gz; do echo "$f: total $(zgrep -vc '^#' $f) | PASS $(zcat $f | awk -F'\t' '!/^#/ && $7=="PASS"' | wc -l)"; done 
+
+zcat WP043.filtered.vcf.gz | awk -F'\t' '!/^#/ && $7=="PASS" {print $1, $2, $4, $5}' 
+
+zcat WP043.filtered.pon.vcf.gz | awk -F'\t' '!/^#/ && $7=="PASS" {print $1, $2, $4, $5}'
+
+
+
+# Resultado
+
+ >> for f in WP017.filtered.vcf.gz WP017.filtered.pon.vcf.gz WP190.filtered.vcf.gz WP190.filtered.pon.vcf.gz WP043.filtered.vcf.gz WP043.filtered.pon.vcf.gz; do echo "$f: $(zcat $f | grep -v '^#' | awk '$7=="PASS"' | wc -l) PASS"; done
+ 
+WP043: 1 variante PASS na análise pareada e 14 na análise com PoN.
+WP017: 1 variante PASS em cada pareamento
+WP190: 2 variantes PASS na análise pareada e 3 com PoN
 
 **Código Fonte (run.chr13-chr19.pon.sh e run.chr13-chr19.sh)**
 
